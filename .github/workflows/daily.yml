@@ -1,0 +1,43 @@
+name: AB's Studio Daily Automation
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run daily automation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node scripts/daily.js
+
+      - name: Save results
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-results-${{ github.run_number }}
+          path: products/latest.json
+          retention-days: 30
+
+      - name: Commit results to repo
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "AB's Studio Bot"
+          git add products/
+          git diff --staged --quiet || git commit -m "📹 Daily content $(date '+%Y-%m-%d')"
+          git push
+        continue-on-error: true
